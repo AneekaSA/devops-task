@@ -57,8 +57,7 @@ pipeline {
                 ]]) {
                     script {
                         // Create ECS cluster if it doesn't exist
-                        sh """
-                        aws ecs describe-clusters --clusters ${CLUSTER_NAME} --region ${AWS_REGION} || \
+                        sh """ 
                         aws ecs create-cluster --cluster-name ${CLUSTER_NAME} --region ${AWS_REGION}
                         """
 
