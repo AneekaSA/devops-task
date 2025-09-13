@@ -4,7 +4,7 @@ pipeline {
     environment {
         REGISTRY = "docker.io"                   // or AWS ECR / GCP Artifact Registry
         IMAGE_NAME = "aneekasa/devops-task-app"  // change to your DockerHub repo
-        DOCKER_CREDENTIALS = 'dockerhub-username'  // Jenkins credentials ID
+        DOCKER_CREDENTIALS = 'dockerhub-pat-token'  // Jenkins credentials ID
     }
 
     triggers {
