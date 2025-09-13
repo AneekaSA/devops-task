@@ -4,6 +4,10 @@ pipeline {
     environment {
         IMAGE_NAME = "aneeka997/devops-task-app"
         DOCKER_CREDENTIALS = 'dockerhub-pat-token'
+        TASK_FAMILY = 'Devops-task'
+        CLUSTER_NAME = "devops-cluster"
+        AWS_REGION = "ap-south-1"
+        SERVICE_NAMEC = "devops-service"
     }
 
     triggers {
@@ -45,13 +49,57 @@ pipeline {
             }
         }
 
-        stage('Deploy') {
+        stage('Deploy to ECS') {
             steps {
-                echo 'Deploying container...'
-                
+                withCredentials([[
+                    $class: 'AmazonWebServicesCredentialsBinding',
+                    credentialsId: 'aws-id'
+                ]]) {
+                    script {
+                        // Create ECS cluster if it doesn't exist
+                        sh """
+                        aws ecs describe-clusters --clusters ${CLUSTER_NAME} --region ${AWS_REGION} || \
+                        aws ecs create-cluster --cluster-name ${CLUSTER_NAME} --region ${AWS_REGION}
+                        """
+
+                        // Register a new task definition with this build's image
+                        sh """
+                        aws ecs register-task-definition \
+                            --family ${TASK_FAMILY} \
+                            --requires-compatibilities FARGATE \
+                            --network-mode awsvpc \
+                            --cpu 256 --memory 512 \
+                            --container-definitions '[{"name":"devops-task-app","image":"${IMAGE_NAME}:${BUILD_NUMBER}","essential":true,"portMappings":[{"containerPort":80,"hostPort":80}]}]' \
+                            --region ${AWS_REGION}
+                        """
+
+                        // Update service (create if doesn't exist)
+                        sh """
+                        if ! aws ecs describe-services --cluster ${CLUSTER_NAME} --services ${SERVICE_NAME} --region ${AWS_REGION} | grep -q ${SERVICE_NAME}; then
+                            aws ecs create-service \
+                                --cluster ${CLUSTER_NAME} \
+                                --service-name ${SERVICE_NAME} \
+                                --task-definition ${TASK_FAMILY} \
+                                --desired-count 1 \
+                                --launch-type FARGATE \
+                                --network-configuration 'awsvpcConfiguration={subnets=[subnet-xxxx],securityGroups=[sg-xxxx],assignPublicIp=ENABLED}' \
+                                --region ${AWS_REGION}
+                        else
+                            aws ecs update-service \
+                                --cluster ${CLUSTER_NAME} \
+                                --service ${SERVICE_NAME} \
+                                --task-definition ${TASK_FAMILY} \
+                                --force-new-deployment \
+                                --region ${AWS_REGION}
+                        fi
+                        """
+                    }
+                }
             }
         }
     }
+
+        
 
     post {
         always {
