@@ -7,7 +7,7 @@ pipeline {
         TASK_FAMILY = 'Devops-task'
         CLUSTER_NAME = "devops-cluster"
         AWS_REGION = "ap-south-1"
-        SERVICE_NAMEC = "devops-service"
+        SERVICE_NAME = "devops-service"
     }
 
     triggers {
