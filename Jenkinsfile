@@ -36,9 +36,11 @@ pipeline {
         stage('Push to Registry') {
             steps {
                 script {
-                    docker.withRegistry("https://${REGISTRY}", DOCKER_CREDENTIALS) {
-                        docker.image("${IMAGE_NAME}:${BUILD_NUMBER}").push()
-                        docker.image("${IMAGE_NAME}:${BUILD_NUMBER}").push("latest")
+                    docker.withRegistry("", DOCKER_CREDENTIALS) {
+                    docker.image("${IMAGE_NAME}:${BUILD_NUMBER}").push()
+                    docker.image("${IMAGE_NAME}:${BUILD_NUMBER}").push("latest")
+}
+
                     }
                 }
             }
