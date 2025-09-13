@@ -31,8 +31,8 @@ pipeline {
         stage('Docker Build') {
             steps {
                 script {
-                    // Build the Docker image and assign to a variable
-                    appImage = docker.build("${IMAGE_NAME}:${BUILD_NUMBER}")
+                    // Declare appImage as global to make it accessible in other stages
+                    env.appImage = docker.build("${IMAGE_NAME}:${BUILD_NUMBER}")
                 }
             }
         }
@@ -40,10 +40,9 @@ pipeline {
         stage('Push to Registry') {
             steps {
                 script {
-                    // Push the previously built image
                     docker.withRegistry('', DOCKER_CREDENTIALS) {
-                        appImage.push()
-                        appImage.push('latest')
+                        env.appImage.push()
+                        env.appImage.push('latest')
                     }
                 }
             }
@@ -56,48 +55,42 @@ pipeline {
                     credentialsId: 'aws-id'
                 ]]) {
                     script {
-                        // Create ECS cluster if it doesn't exist
-                        sh """ 
+                        // Create cluster if it doesn't exist
+                        sh """
+                        aws ecs describe-clusters --clusters ${CLUSTER_NAME} --region ${AWS_REGION} | grep -q ${CLUSTER_NAME} || \
                         aws ecs create-cluster --cluster-name ${CLUSTER_NAME} --region ${AWS_REGION}
                         """
 
-                        // Register a new task definition with this build's image
+                        // Register new task definition
                         sh """
-                        aws ecs register-task-definition \
-                            --family ${TASK_FAMILY} \
-                            --requires-compatibilities FARGATE \
-                            --network-mode awsvpc \
-                            --cpu 256 --memory 512 \
-                            --container-definitions '[{"name":"devops-task-app","image":"${IMAGE_NAME}:${BUILD_NUMBER}","essential":true,"portMappings":[{"containerPort":80,"hostPort":80}]}]' \
+                        aws ecs register-task-definition \\
+                            --family ${TASK_FAMILY} \\
+                            --requires-compatibilities FARGATE \\
+                            --network-mode awsvpc \\
+                            --cpu 256 --memory 512 \\
+                            --container-definitions '[{"name":"devops-task-app","image":"${IMAGE_NAME}:${BUILD_NUMBER}","essential":true,"portMappings":[{"containerPort":80,"hostPort":80}]}]' \\
                             --region ${AWS_REGION}
                         """
 
-                        // Update service (create if doesn't exist)
+                        // Check if service exists and create/update
                         sh """
-                        SERVICE_EXISTS=$(aws ecs describe-services \
-                            --cluster ${CLUSTER_NAME} \
-                            --services ${SERVICE_NAME} \
-                            --region ${AWS_REGION} \
-                            --query "services[0].status" \
-                            --output text)
+                        SERVICE_EXISTS=\$(aws ecs describe-services --cluster ${CLUSTER_NAME} --services ${SERVICE_NAME} --region ${AWS_REGION} --query "services[0].status" --output text)
 
-                        if [ "$SERVICE_EXISTS" = "None" ] || [ "$SERVICE_EXISTS" = "INACTIVE" ]; then
-                            # Service doesn't exist → create it
-                            aws ecs create-service \
-                                --cluster ${CLUSTER_NAME} \
-                                --service-name ${SERVICE_NAME} \
-                                --task-definition ${TASK_FAMILY} \
-                                --desired-count 1 \
-                                --launch-type FARGATE \
-                                --network-configuration 'awsvpcConfiguration={subnets=[subnet-xxxx],securityGroups=[sg-xxxx],assignPublicIp=ENABLED}' \
+                        if [ "\$SERVICE_EXISTS" = "None" ] || [ "\$SERVICE_EXISTS" = "INACTIVE" ]; then
+                            aws ecs create-service \\
+                                --cluster ${CLUSTER_NAME} \\
+                                --service-name ${SERVICE_NAME} \\
+                                --task-definition ${TASK_FAMILY} \\
+                                --desired-count 1 \\
+                                --launch-type FARGATE \\
+                                --network-configuration 'awsvpcConfiguration={subnets=[subnet-xxxx],securityGroups=[sg-xxxx],assignPublicIp=ENABLED}' \\
                                 --region ${AWS_REGION}
                         else
-                            # Service exists → update it
-                            aws ecs update-service \
-                                --cluster ${CLUSTER_NAME} \
-                                --service ${SERVICE_NAME} \
-                                --task-definition ${TASK_FAMILY} \
-                                --force-new-deployment \
+                            aws ecs update-service \\
+                                --cluster ${CLUSTER_NAME} \\
+                                --service ${SERVICE_NAME} \\
+                                --task-definition ${TASK_FAMILY} \\
+                                --force-new-deployment \\
                                 --region ${AWS_REGION}
                         fi
                         """
@@ -106,8 +99,6 @@ pipeline {
             }
         }
     }
-
-        
 
     post {
         always {
