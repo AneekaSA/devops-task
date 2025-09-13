@@ -37,8 +37,8 @@ pipeline {
             steps {
                 script {
                     docker.withRegistry("", DOCKER_CREDENTIALS) {
-                    docker.image("${IMAGE_NAME}:${BUILD_NUMBER}").push()
-                    docker.image("${IMAGE_NAME}:${BUILD_NUMBER}").push("latest")
+                        docker.image("${IMAGE_NAME}:${BUILD_NUMBER}").push()
+                        docker.image("${IMAGE_NAME}:${BUILD_NUMBER}").push("latest")
 }
 
                     }
