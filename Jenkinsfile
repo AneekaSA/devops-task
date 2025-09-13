@@ -2,13 +2,12 @@ pipeline {
     agent any
 
     environment {
-        REGISTRY = "docker.io"                   // or AWS ECR / GCP Artifact Registry
-        IMAGE_NAME = "aneeka997/devops-task-app"  // change to your DockerHub repo
-        DOCKER_CREDENTIALS = 'dockerhub-pat-token'  // Jenkins credentials ID
+        IMAGE_NAME = "aneeka997/devops-task-app"
+        DOCKER_CREDENTIALS = 'dockerhub-pat-token'
     }
 
     triggers {
-        githubPush()   // Trigger on GitHub push (needs webhook)
+        githubPush()
     }
 
     stages {
@@ -28,7 +27,8 @@ pipeline {
         stage('Docker Build') {
             steps {
                 script {
-                    docker.build("${IMAGE_NAME}:${BUILD_NUMBER}")
+                    // Build the Docker image and assign to a variable
+                    appImage = docker.build("${IMAGE_NAME}:${BUILD_NUMBER}")
                 }
             }
         }
@@ -36,11 +36,10 @@ pipeline {
         stage('Push to Registry') {
             steps {
                 script {
-                    docker.withRegistry("", DOCKER_CREDENTIALS) {
-                        docker.image("${IMAGE_NAME}:${BUILD_NUMBER}").push()
-                        docker.image("${IMAGE_NAME}:${BUILD_NUMBER}").push("latest")
-}
-
+                    // Push the previously built image
+                    docker.withRegistry('', DOCKER_CREDENTIALS) {
+                        appImage.push()
+                        appImage.push('latest')
                     }
                 }
             }
@@ -49,8 +48,7 @@ pipeline {
         stage('Deploy') {
             steps {
                 echo 'Deploying container...'
-                // Example: AWS ECS CLI, kubectl for EKS/GKE, or gcloud for Cloud Run
-                // sh 'aws ecs update-service --cluster myCluster --service myService --force-new-deployment'
+                
             }
         }
     }
@@ -67,3 +65,4 @@ pipeline {
             echo "Pipeline failed ❌"
         }
     }
+}
