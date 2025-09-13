@@ -74,7 +74,15 @@ pipeline {
 
                         // Update service (create if doesn't exist)
                         sh """
-                        if ! aws ecs describe-services --cluster ${CLUSTER_NAME} --services ${SERVICE_NAME} --region ${AWS_REGION} | grep -q ${SERVICE_NAME}; then
+                        SERVICE_EXISTS=$(aws ecs describe-services \
+                            --cluster ${CLUSTER_NAME} \
+                            --services ${SERVICE_NAME} \
+                            --region ${AWS_REGION} \
+                            --query "services[0].status" \
+                            --output text)
+
+                        if [ "$SERVICE_EXISTS" = "None" ] || [ "$SERVICE_EXISTS" = "INACTIVE" ]; then
+                            # Service doesn't exist → create it
                             aws ecs create-service \
                                 --cluster ${CLUSTER_NAME} \
                                 --service-name ${SERVICE_NAME} \
@@ -84,6 +92,7 @@ pipeline {
                                 --network-configuration 'awsvpcConfiguration={subnets=[subnet-xxxx],securityGroups=[sg-xxxx],assignPublicIp=ENABLED}' \
                                 --region ${AWS_REGION}
                         else
+                            # Service exists → update it
                             aws ecs update-service \
                                 --cluster ${CLUSTER_NAME} \
                                 --service ${SERVICE_NAME} \
