@@ -79,7 +79,7 @@ pipeline {
                                 --service-name ${SERVICE_NAME} \
                                 --task-definition ${TASK_FAMILY} \
                                 --desired-count 1 \
-                                --launch-type FARGATE \ 
+                                --launch-type FARGATE \
                                 --network-configuration 'awsvpcConfiguration={subnets=["subnet-04d12569497e1b3e9","subnet-07d4ba1600697f975"],securityGroups=["sg-0d8275262c70b504a"],assignPublicIp="ENABLED"}' \
                                 --region ${AWS_REGION}
                                 
